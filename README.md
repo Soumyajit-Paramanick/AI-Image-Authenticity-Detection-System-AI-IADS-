@@ -1,8 +1,8 @@
 # 📘 AI Image Authenticity Detection System (AI-IADS)
 
-An end-to-end, microservice-based system that detects whether an image is real (camera-captured) or AI-generated, using forensic analysis, machine learning, deep learning, and human verification.
+A DevOps-driven, microservice-based system that detects whether an image is real (camera-captured) or AI-generated, using forensic analysis, machine learning, deep learning, and human-in-the-loop verification.
 
-Designed with scalability, explainability, and DevOps best practices.
+Designed with scalability, explainability, microservices architecture, and CI/CD best practices.
 
 ---
 
@@ -27,26 +27,26 @@ Designed with scalability, explainability, and DevOps best practices.
 
 ### 1.1 Purpose
 
-The purpose of this project is to design and implement a scalable, explainable, microservice-based system that detects whether an image is real or AI-generated.
+The purpose of this project is to design and implement a scalable, explainable, microservice-based AI system that determines whether an image is real or AI-generated.
 
-The system combines:
-- Image forensic analysis
-- Machine learning and deep learning
-- Human-in-the-loop validation
-- Production-grade DevOps practices
+The system integrates:
+- Image forensic analysis  
+- Machine learning and deep learning inference  
+- Human-in-the-loop validation  
+- Production-ready DevOps practices  
 
 ---
 
 ### 1.2 Scope
 
 The system:
-- Accepts images from users
-- Performs forensic analysis using multiple test cases
-- Uses ML/DL models trained on curated datasets
-- Allows manual and forensic expert verification
-- Produces a final explainable verdict
-- Is built using microservice architecture
-- Is deployable using DevOps best practices
+- Accepts image uploads from users  
+- Performs forensic analysis using multiple test cases  
+- Uses ML/DL models trained on curated datasets  
+- Allows manual and forensic expert verification  
+- Produces a final explainable authenticity verdict  
+- Is built using microservice architecture  
+- Is deployable using modern DevOps practices  
 
 ---
 
@@ -55,32 +55,32 @@ The system:
 ### 2.1 Technical Objectives
 
 - Learn and implement Microservice Architecture
-- Work with Java, Python, and React
-- Design ML/DL lifecycle (data → training → deployment)
+- Work with Spring Boot, Django, and React
+- Design the complete ML/DL lifecycle (data → training → deployment)
 - Implement human-in-the-loop AI
 - Apply DevOps practices (Docker, CI/CD, Kubernetes)
-- Build scalable and maintainable systems
+- Build scalable, maintainable, and secure systems
 
 ---
 
 ### 2.2 Learning Objectives
 
-- Understand distributed system design
-- Learn service-to-service communication
-- Practice API design and versioning
-- Implement explainable AI
-- Gain experience in collaborative development
-- Apply software engineering best practices
+- Understand distributed system design  
+- Learn service-to-service communication  
+- Practice REST API design and versioning  
+- Implement explainable AI systems  
+- Gain experience in collaborative development  
+- Apply software engineering best practices  
 
 ---
 
 ### 2.3 Industry Relevance
 
-This project simulates real-world systems used in:
-- Digital forensics
-- Media authenticity verification
-- Content moderation platforms
-- AI governance and compliance tools
+This project reflects real-world systems used in:
+- Digital forensics  
+- Media authenticity verification  
+- Content moderation platforms  
+- AI governance and compliance tools  
 
 ---
 
@@ -88,19 +88,19 @@ This project simulates real-world systems used in:
 
 ### 3.1 User Roles
 
-Role: End User — Uploads images  
-Role: Reviewer — Performs manual labeling  
-Role: Forensic Expert — Final verification  
-Role: Admin — Manages system and ML models  
+- End User — Uploads images  
+- Reviewer — Performs blind manual labeling  
+- Forensic Expert — Final expert verification  
+- Admin — Manages system configuration and ML models  
 
 ---
 
 ### 3.2 Operating Environment
 
-- Web application (browser-based)
-- Backend services (Dockerized)
+- Web application (browser-based UI)
+- Backend microservices (Dockerized)
 - Database server (PostgreSQL / MySQL)
-- Object storage (S3 / MinIO)
+- Object storage (Amazon S3 / MinIO)
 - Kubernetes cluster (optional)
 
 ---
@@ -109,7 +109,11 @@ Role: Admin — Manages system and ML models
 
 ### 4.1 High-Level Architecture Diagram (Logical)
 
-![High-Level Architecture Diagram](README_images/architecture_diagram.png)
+<p align="center">
+  <img src="README_images/architecture_diagram.png" alt="Architecture Diagram" width="800"/>
+</p>
+
+*Figure: High-level microservice architecture of AI Image Authenticity Detection System (AI-IADS)*
 
 ---
 
@@ -119,25 +123,25 @@ Role: Admin — Manages system and ML models
 
 Responsibilities:
 - Accept image uploads
-- Validate file format
-- Store image in object storage
-- Generate unique image ID
+- Validate file format and size
+- Store images in object storage
+- Generate and manage unique image IDs
 
 Endpoints:
-- POST /images/upload
-- GET  /images/{id}
+- POST /images/upload  
+- GET  /images/{id}  
 
 ---
 
 ### 5.2 Forensic Feature Extraction Service (Django)
 
 Responsibilities:
-- Metadata analysis
-- FFT analysis
-- Noise analysis
-- Color distribution analysis
-- Compression artifact detection
-- Symmetry and structural checks
+- Metadata analysis  
+- FFT (frequency domain) analysis  
+- Noise pattern analysis  
+- Color distribution analysis  
+- Compression artifact detection  
+- Symmetry and structural consistency checks  
 
 Sample Output:
 {
@@ -152,14 +156,14 @@ Sample Output:
 ### 5.3 ML Inference Service (Django)
 
 Responsibilities:
-- Load trained ML/DL models
-- Perform inference
+- Load approved ML/DL models
+- Perform inference on extracted features
 - Return prediction with confidence score
 - Support model versioning
 
 Important:
-- No training happens here
-- Read-only inference service
+- No training occurs in this service  
+- Read-only inference for production safety  
 
 ---
 
@@ -177,9 +181,9 @@ Responsibilities:
 
 Responsibilities:
 - JWT-based authentication
-- Request routing
+- Request routing to microservices
 - Rate limiting
-- Centralized logging
+- Centralized logging and monitoring
 
 ---
 
@@ -190,21 +194,23 @@ Responsibilities:
 PostgreSQL (Recommended)
 
 Reasons:
-- Better JSON support
-- Strong consistency
-- Widely used in microservice architectures
+- Strong consistency guarantees  
+- Excellent JSON support  
+- Widely adopted in microservice architectures  
+
+(MySQL is supported but PostgreSQL is preferred.)
 
 ---
 
 ### 6.2 Core Tables
 
-- images
-- features
-- ml_predictions
-- human_labels
-- final_decisions
-- audit_logs
-- model_versions
+- images  
+- features  
+- ml_predictions  
+- human_labels  
+- final_decisions  
+- audit_logs  
+- model_versions  
 
 ---
 
@@ -212,20 +218,20 @@ Reasons:
 
 ### 7.1 Data Sources
 
-Kaggle — AI vs Real datasets  
-Research Institutes — GAN detection datasets  
-Public Benchmarks — FaceForensics++, CelebDF  
-Raw Camera Data — Mobile / DSLR images  
-Generated Data — Stable Diffusion, DALL·E  
+- Kaggle — AI vs Real datasets  
+- Research Institutes — GAN detection datasets  
+- Public Benchmarks — FaceForensics++, CelebDF  
+- Raw Camera Data — Mobile and DSLR images  
+- Generated Data — Stable Diffusion, DALL·E  
 
 ---
 
 ### 7.2 Dataset Handling Strategy
 
-- Store raw images in object storage
-- Store metadata and labels in database
-- Maintain dataset versioning
-- Freeze dataset snapshots before training
+- Store raw images in object storage  
+- Store metadata and labels in the database  
+- Maintain dataset versioning  
+- Freeze dataset snapshots before training  
 
 ---
 
@@ -233,72 +239,78 @@ Generated Data — Stable Diffusion, DALL·E
 
 ### 8.1 Training (Offline)
 
-- Random Forest
-- XGBoost
-- ResNet (future)
-- EfficientNet (future)
+- Random Forest  
+- XGBoost  
+- ResNet (future phase)  
+- EfficientNet (future phase)  
+
+Training is performed offline on local or GPU-enabled systems.
 
 ---
 
 ### 8.2 Inference (Online)
 
-- Django-based microservice
-- Loads approved model version
-- Produces predictions with confidence score
+- Deployed as a Django microservice  
+- Loads approved model versions  
+- Produces prediction with confidence score  
 
 ---
 
 ## 9. NON-FUNCTIONAL REQUIREMENTS
 
 Performance:
-- Inference latency < 500 ms
-- Async processing for heavy tasks
+- Inference latency < 500 ms  
+- Asynchronous processing for heavy tasks  
 
 Scalability:
-- Horizontal scaling via Kubernetes
-- Stateless services
+- Horizontal scaling via Kubernetes  
+- Stateless microservices  
 
 Security:
-- JWT authentication
-- Secure file uploads
-- Audit logging
+- JWT authentication  
+- Secure file uploads  
+- Audit logging  
 
 Maintainability:
-- Clean service boundaries
-- Versioned APIs
-- CI/CD pipelines
+- Clean service boundaries  
+- Versioned APIs  
+- CI/CD pipelines  
 
 ---
 
 ## 10. DEVOPS & COLLABORATION
 
 DevOps Practices:
-- Docker for all services
-- GitHub Actions CI/CD
-- Kubernetes deployment
-- Environment-based configuration
+- Dockerized microservices  
+- GitHub Actions CI/CD pipelines  
+- Kubernetes-ready deployment  
+- Environment-based configurations  
 
 Collaboration:
-- Git branching strategy
-- Code reviews
-- Shared API contracts
-- Centralized documentation
+- Git branching strategy  
+- Code reviews  
+- Shared API contracts  
+- Centralized documentation  
 
 ---
 
 ## 11. COMPLETE PROJECT FLOW (END-TO-END)
 
-![Complete Project Flow](README_images/flow_diagram.png)
+<p align="center">
+  <img src="README_images/flow_diagram.png" alt="Project Flow Diagram" width="800"/>
+</p>
+
+*Figure: End-to-end flow from image upload to final authenticity verdict*
 
 ---
 
 ## 12. CONCLUSION
 
 This project demonstrates:
-- Microservice architecture mastery
-- End-to-end AI system lifecycle
-- Cross-technology integration
-- Explainable and responsible AI
-- Production-ready DevOps mindset
+- Strong understanding of microservice architecture  
+- End-to-end AI system lifecycle implementation  
+- Integration of Spring Boot, Django, ML/DL, and DevOps  
+- Explainable and responsible AI design  
+- Production-ready engineering mindset  
 
-If you find this project useful, consider starring the repository.
+If you find this project useful, consider starring the repository ⭐
