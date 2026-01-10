@@ -8,18 +8,18 @@ Designed with scalability, explainability, microservices architecture, and CI/CD
 
 ## 📌 Table of Contents
 
-1. Introduction  
-2. Project Objectives  
-3. Overall System Description  
-4. High-Level Architecture  
-5. Low-Level Architecture (Service-wise)  
-6. Database Design  
-7. Data Collection Process  
-8. Machine Learning & Deep Learning Flow  
-9. Non-Functional Requirements  
-10. DevOps & Collaboration  
-11. Complete Project Flow (End-to-End)  
-12. Conclusion  
+1. [Introduction](#1-introduction)  
+2. [Project Objectives](#2-objectives-of-the-project)  
+3. [Overall System Description](#3-overall-system-description)  
+4. [High-Level Architecture](#4-high-level-architecture)  
+5. [Low-Level Architecture (Service-wise)](#5-low-level-architecture-service-wise)  
+6. [Database Design](#6-database-design)  
+7. [Data Collection Process](#7-data-collection-process)  
+8. [Machine Learning & Deep Learning Flow](#8-machine-learning--deep-learning-flow)  
+9. [Non-Functional Requirements](#9-non-functional-requirements)  
+10. [DevOps & Collaboration](#10-devops--collaboration)  
+11. [Complete Project Flow (End-to-End)](#11-complete-project-flow-end-to-end)  
+12. [Conclusion](#12-conclusion)   
 
 ---
 
