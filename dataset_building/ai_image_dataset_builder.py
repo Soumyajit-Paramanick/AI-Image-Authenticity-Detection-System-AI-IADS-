@@ -1,3 +1,4 @@
+# Before running this code ensure you have the required libraries installed also go in the link : "https://github.com/UB-Mannheim/tesseract/wiki" from here download the exe
 import os
 import cv2
 import numpy as np
