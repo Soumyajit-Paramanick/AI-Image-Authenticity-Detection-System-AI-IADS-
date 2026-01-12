@@ -8,7 +8,7 @@ This document describes the dataset sources, dataset construction process, extra
 
 ## 1. Dataset Sources
 
-To build a large-scale, openly usable dataset, images were collected from publicly available and free sources on Kaggle.
+To build a large-scale, openly usable dataset, images were collected from **publicly available and free datasets on Kaggle**.
 
 The datasets were selected based on:
 - Open availability
@@ -17,12 +17,18 @@ The datasets were selected based on:
 - Large image volume suitable for machine learning
 
 ### Selected Datasets
-- CIFAKE: Real and AI-generated synthetic images  
-- AI-generated images vs real images dataset  
 
-📌 **Total images collected:** ~180,000
+1. **CIFAKE: Real and AI-generated Synthetic Images**  
+   https://www.kaggle.com/datasets/birdy654/cifake-real-and-ai-generated-synthetic-images
 
-These datasets provide a diverse mix of:
+2. **AI-generated Images vs Real Images**  
+   https://www.kaggle.com/datasets/tristanzhang32/ai-generated-images-vs-real-images
+
+📌 **Total images collected from both datasets:** approximately **180,000 images**
+
+These datasets together provide a **large and diverse image corpus**, making them a strong resource for training and evaluating image authenticity detection models.
+
+The collected images include a mix of:
 - Camera-captured photographs
 - AI-generated images
 - Edited, resized, and recompressed images
@@ -36,7 +42,7 @@ Raw images are **not directly used** for training.
 Instead, a **forensic, signal-based approach** is adopted to:
 - Avoid black-box learning
 - Improve explainability
-- Reduce overfitting to dataset artifacts
+- Reduce overfitting to dataset-specific artifacts
 - Enable human-verifiable decisions
 
 Each image is processed independently to extract measurable forensic signals.
@@ -49,10 +55,13 @@ A custom pipeline implemented in:
 
 ai_image_dataset_builder.py
 
+
 is used to analyze each image and generate a structured CSV file:
 
+forensic_features_dataset.csv
 
-Each row in the CSV corresponds to **one image**.
+
+Each row in the CSV corresponds to **one image**, and each column represents a distinct forensic signal.
 
 ---
 
@@ -142,11 +151,11 @@ This ensures robustness against:
 
 ## 8. Summary
 
-This dataset and training pipeline enable:
+Using approximately **180,000 openly available images** from two large Kaggle datasets, AI-IADS builds a structured forensic-feature dataset that enables:
 
 - Explainable AI image authenticity detection
 - Multi-class classification grounded in forensic evidence
-- Scalable machine learning on large, open datasets
+- Scalable machine learning on real-world image data
 - Transparent and auditable decision-making
 
 The generated CSV dataset forms the foundation for both rule-based analysis and supervised machine learning models in AI-IADS.
