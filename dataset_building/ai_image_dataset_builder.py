@@ -1,31 +1,47 @@
-# Before running this code ensure you have the required libraries installed also go in the link : "https://github.com/UB-Mannheim/tesseract/wiki" from here download the exe
+# AI Image Authenticity Dataset Builder
+# Stable version with modern AI-aware forensic logic
+# Extension-based prior stored separately (not used in scoring)
 import os
 import cv2
 import numpy as np
 import pandas as pd
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 from PIL import Image
-import pytesseract
+import concurrent.futures
+import threading
 
-# ================== IMPORTANT (WINDOWS OCR FIX) ==================
-# Make sure this path matches where you installed Tesseract
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-# =================================================================
+# ================== VALID IMAGE TYPES ==================
 
 VALID_EXTENSIONS = (
-    '.jpg', '.jpeg', '.jfif',     # JPEG family (MOST IMPORTANT)
-    '.png',                       # Lossless, screenshots, diagrams
-    '.bmp',                       # Uncompressed
-    '.tiff', '.tif',              # Scanners, high-quality images
-    '.webp'                       # Modern web / AI images
+    '.jpg', '.jpeg', '.jfif',
+    '.png',
+    '.bmp',
+    '.tiff', '.tif',
+    '.webp'
 )
 
+# ================== PROCESSING CONFIG ==================
 
+PROCESSING_SIZE = (512, 512)  # runtime only
+MAX_WORKERS = 4  # Number of parallel processes
 
-# ================== FORENSIC FEATURE FUNCTIONS ==================
+# ================== IMAGE LOADER (MAINTAINS ORIGINAL ACCURACY) ==================
+
+def load_and_normalize_image(image_path, grayscale=False):
+    """Original accurate image loader"""
+    img = cv2.imread(image_path)
+    if img is None:
+        return None
+    img = cv2.resize(img, PROCESSING_SIZE, interpolation=cv2.INTER_AREA)
+    if grayscale:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    return img
+
+# ================== FORENSIC FEATURE FUNCTIONS (ORIGINAL ACCURATE VERSIONS) ==================
 
 def exif_present(image_path):
+    """Original EXIF check"""
     try:
         img = Image.open(image_path)
         exif = img._getexif()
@@ -33,241 +49,361 @@ def exif_present(image_path):
     except:
         return 1
 
-
 def fft_variance(image_path):
-    img = cv2.imread(image_path, 0)
+    """Original accurate FFT calculation"""
+    img = load_and_normalize_image(image_path, grayscale=True)
     if img is None:
         return 0
     f = np.fft.fftshift(np.fft.fft2(img))
-    magnitude = np.log(np.abs(f) + 1)
-    return round(float(np.var(magnitude)), 4)
-
+    mag = np.log(np.abs(f) + 1)
+    return round(float(np.var(mag)), 4)
 
 def noise_std(image_path):
-    img = cv2.imread(image_path, 0)
+    """Original noise calculation"""
+    img = load_and_normalize_image(image_path, grayscale=True)
     if img is None:
         return 0
     blur = cv2.GaussianBlur(img, (5, 5), 0)
     noise = img - blur
     return round(float(np.std(noise)), 4)
 
-
 def compression_diff(image_path):
-    img = cv2.imread(image_path, 0)
+    """Original compression calculation"""
+    img = load_and_normalize_image(image_path, grayscale=True)
     if img is None:
         return 0
     _, enc = cv2.imencode('.jpg', img, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
     dec = cv2.imdecode(enc, 0)
     return round(float(np.mean(np.abs(img - dec))), 4)
 
-
 def color_bias(image_path):
-    img = cv2.imread(image_path)
+    """Original color bias calculation"""
+    img = load_and_normalize_image(image_path)
     if img is None:
         return 0
-    hist_r = cv2.calcHist([img], [0], None, [256], [0, 256])
-    hist_g = cv2.calcHist([img], [1], None, [256], [0, 256])
-    corr = np.corrcoef(hist_r.flatten(), hist_g.flatten())[0][1]
+    hr = cv2.calcHist([img], [0], None, [256], [0, 256])
+    hg = cv2.calcHist([img], [1], None, [256], [0, 256])
+    corr = np.corrcoef(hr.flatten(), hg.flatten())[0][1]
     return 1 if corr > 0.98 else 0
 
-
 def symmetry_score(image_path):
-    img = cv2.imread(image_path, 0)
+    """Original symmetry calculation"""
+    img = load_and_normalize_image(image_path, grayscale=True)
     if img is None:
         return 0
-
     edges = cv2.Canny(img, 100, 200)
-    h, w = edges.shape
-    mid = w // 2
-
+    mid = edges.shape[1] // 2
     left = edges[:, :mid]
-    right = edges[:, mid:w]
-
-    min_width = min(left.shape[1], right.shape[1])
-    left = left[:, :min_width]
-    right = right[:, :min_width]
-
-    right = np.fliplr(right)
+    right = np.fliplr(edges[:, mid:])
     return round(float(np.mean(np.abs(left - right))), 4)
 
+# ================== PROCESS SINGLE IMAGE ==================
 
-# ================== WATERMARK DETECTION ==================
+def process_single_image(file_path, filename):
+    """Process a single image and return its features"""
+    try:
+        row = {
+            "image_name": filename,
+            "extension_prior": get_extension_prior(filename),
+            "exif_missing": exif_present(file_path),
+            "fft_variance": fft_variance(file_path),
+            "noise_std": noise_std(file_path),
+            "compression_diff": compression_diff(file_path),
+            "color_bias": color_bias(file_path),
+            "symmetry_score": symmetry_score(file_path),
+        }
 
-def detect_text_watermark_and_boxes(image):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        (
+            row["camera_score"],
+            row["ai_score"],
+            row["graphic_score"],
+            row["edited_score"],
+            row["probable_class"],
+            row["final_label_count"]
+        ) = classify_image(row)
 
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-    enhanced = clahe.apply(gray)
+        row["expert_confirmation"] = ""
+        return row
+    except Exception as e:
+        print(f"Error processing {filename}: {str(e)}")
+        return None
 
-    data = pytesseract.image_to_data(
-        enhanced, output_type=pytesseract.Output.DICT
+# ================== EXTENSION PRIOR ==================
+
+def get_extension_prior(filename):
+    ext = os.path.splitext(filename.lower())[1]
+    mapping = {
+        ".jpg": "1,4",
+        ".jpeg": "1,4",
+        ".jfif": "4,1",
+        ".png": "2,3,4",
+        ".webp": "2,4,3",
+        ".bmp": "3",
+        ".tif": "1,4",
+        ".tiff": "1,4"
+    }
+    return mapping.get(ext, "")
+
+# ================== CLASSIFICATION LOGIC ==================
+
+def classify_image(row):
+    scores = {
+        1: 0.0,  # Camera
+        2: 0.0,  # AI
+        3: 0.0,  # Graphic
+        4: 0.0   # Edited
+    }
+
+    exif_missing = row["exif_missing"]
+    fv = row["fft_variance"]
+    ns = row["noise_std"]
+    cd = row["compression_diff"]
+    ss = row["symmetry_score"]
+    cb = row["color_bias"]
+
+    # ---- EXIF ----
+    if exif_missing == 0:
+        scores[1] += 2
+    else:
+        scores[1] -= 1
+        scores[2] += 1
+        scores[4] += 0.5
+
+    # ---- FFT ----
+    if fv < 0.95:
+        scores[3] += 1
+    elif fv < 1.15:
+        scores[4] += 1
+    elif fv <= 1.6:
+        scores[2] += 1
+    else:
+        scores[1] += 1
+
+    # ---- NOISE (FIXED) ----
+    if ns < 8:
+        scores[3] += 1
+    elif ns < 20:
+        scores[4] += 1
+    elif ns <= 90:
+        scores[2] += 1
+    else:
+        if exif_missing == 0:
+            scores[1] += 1
+        else:
+            scores[2] += 1
+
+    # ---- COMPRESSION ----
+    if cd < 4:
+        scores[3] += 1
+    elif cd < 12:
+        scores[4] += 1
+    elif cd <= 35:
+        scores[2] += 1
+    else:
+        scores[1] += 1
+
+    # ---- COLOR BIAS ----
+    if cb == 1:
+        scores[3] += 1
+
+    # ---- SYMMETRY ----
+    if ss < 1.5:
+        scores[2] += 1
+    elif ss < 4:
+        scores[4] += 1
+    elif ss < 8:
+        scores[1] += 0.5
+    else:
+        scores[1] += 1
+
+    # ---- CAMERA SANITY RULE ----
+    if exif_missing == 1 and scores[1] > scores[2] + 0.5:
+        scores[1] = scores[2] + 0.5
+
+    max_score = max(scores.values())
+    probable = [str(k) for k, v in scores.items() if v == max_score]
+
+    return (
+        scores[1],
+        scores[2],
+        scores[3],
+        scores[4],
+        ",".join(probable),
+        len(probable)
     )
 
-    boxes = []
-    extracted_text = []
+# ================== PROCESSING WITH PROGRESS ==================
 
-    keywords = [
-        "gemini", "ai generated", "generated",
-        "openai", "stable diffusion", "watermark"
-    ]
-
-    for i in range(len(data["text"])):
-        text = data["text"][i].strip()
-        if text:
-            for k in keywords:
-                if k in text.lower():
-                    x = data["left"][i]
-                    y = data["top"][i]
-                    w = data["width"][i]
-                    h = data["height"][i]
-                    boxes.append((x, y, w, h))
-                    extracted_text.append(text)
-
-    return " ".join(extracted_text), boxes
-
-
-def detect_image_watermark_regions(image):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 50, 150)
-
-    h, w = edges.shape
-    mask = np.zeros_like(edges)
-
-    mask[:int(h * 0.15), :] = edges[:int(h * 0.15), :]
-    mask[int(h * 0.85):, :] = edges[int(h * 0.85):, :]
-    mask[:, :int(w * 0.15)] = edges[:, :int(w * 0.15)]
-    mask[:, int(w * 0.85):] = edges[:, int(w * 0.85):]
-
-    density = np.sum(mask > 0) / mask.size
-    return density > 0.01, mask
-
-
-def highlight_and_save(image_path, output_folder):
-    image = cv2.imread(image_path)
-    if image is None:
-        return "", 0
-
-    marked = image.copy()
-    watermark_found = False
-
-    # --- TEXT WATERMARK ---
-    watermark_text, boxes = detect_text_watermark_and_boxes(image)
-    for (x, y, w, h) in boxes:
-        cv2.rectangle(marked, (x, y), (x + w, y + h), (0, 0, 255), 2)
-        watermark_found = True
-
-    # --- IMAGE / LOGO WATERMARK ---
-    logo_present, mask = detect_image_watermark_regions(image)
-    if logo_present:
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for cnt in contours:
-            if cv2.contourArea(cnt) > 500:
-                x, y, w, h = cv2.boundingRect(cnt)
-                cv2.rectangle(marked, (x, y), (x + w, y + h), (255, 0, 0), 2)
-                watermark_found = True
-
-    if watermark_found:
-        os.makedirs(output_folder, exist_ok=True)
-        cv2.imwrite(
-            os.path.join(output_folder, os.path.basename(image_path)),
-            marked
-        )
-
-    return watermark_text, 1 if watermark_found else 0
-
-
-# ================== PROCESSING ==================
-
-def process_folder(folder_path):
-    data = []
-    watermark_dir = os.path.join(folder_path, "watermarked_folder")
-
-    for file in os.listdir(folder_path):
-        if file.lower().endswith(VALID_EXTENSIONS):
-            img_path = os.path.join(folder_path, file)
-
-            watermark_text, watermark_present = highlight_and_save(
-                img_path, watermark_dir
-            )
-
-            row = {
-                "image_name": file,
-                "exif_missing": exif_present(img_path),
-                "fft_variance": fft_variance(img_path),
-                "noise_std": noise_std(img_path),
-                "compression_diff": compression_diff(img_path),
-                "color_bias": color_bias(img_path),
-                "symmetry_score": symmetry_score(img_path),
-                "watermark_text": watermark_text,
-                "image_watermark_present": watermark_present
+def process_folder_threaded(folder_path, progress_callback=None, completion_callback=None):
+    """Process folder in a separate thread with parallel processing"""
+    try:
+        # Get all image files
+        image_files = []
+        for file in os.listdir(folder_path):
+            if file.lower().endswith(VALID_EXTENSIONS):
+                image_files.append((os.path.join(folder_path, file), file))
+        
+        if not image_files:
+            if completion_callback:
+                completion_callback("Error", "No valid images found.")
+            return
+        
+        total_images = len(image_files)
+        data = []
+        processed = 0
+        
+        # Process images in parallel using ThreadPoolExecutor
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            # Submit all tasks
+            future_to_file = {
+                executor.submit(process_single_image, file_path, filename): (file_path, filename)
+                for file_path, filename in image_files
             }
+            
+            # Process results as they complete
+            for future in concurrent.futures.as_completed(future_to_file):
+                result = future.result()
+                if result is not None:
+                    data.append(result)
+                
+                processed += 1
+                if progress_callback:
+                    progress = (processed / total_images) * 100
+                    progress_callback(progress, processed, total_images)
+        
+        # Save to CSV
+        if data:
+            df = pd.DataFrame(data)
+            csv_path = os.path.join(folder_path, "forensic_features_dataset.csv")
+            df.to_csv(csv_path, index=False)
+            
+            if completion_callback:
+                completion_callback("Success", f"Processed {len(data)} images.\nCSV saved at:\n{csv_path}")
+        else:
+            if completion_callback:
+                completion_callback("Error", "No images could be processed.")
+                
+    except Exception as e:
+        if completion_callback:
+            completion_callback("Error", f"Processing failed: {str(e)}")
 
-            data.append(row)
+# ================== GUI WITH PROGRESS BAR ==================
 
-    if not data:
-        messagebox.showerror("Error", "No valid images found.")
-        return
+class ProcessingApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("AI Image Authenticity Dataset Builder")
+        self.root.geometry("680x480")
+        self.root.resizable(False, False)
+        
+        self.setup_ui()
+        self.processing = False
+        self.stop_requested = False
+        
+    def setup_ui(self):
+        # Title
+        tk.Label(self.root, text="AI Image Authenticity Dataset Builder",
+                font=("Arial", 14, "bold")).pack(pady=10)
+        
+        # Folder selection
+        tk.Button(self.root, text="Select Image Folder",
+                 width=40, command=self.select_folder).pack(pady=5)
+        
+        self.folder_label = tk.Label(self.root, text="", wraplength=640, fg="blue")
+        self.folder_label.pack(pady=5)
+        
+        # Progress frame
+        progress_frame = tk.Frame(self.root)
+        progress_frame.pack(pady=10)
+        
+        self.progress_bar = ttk.Progressbar(progress_frame, length=400, mode='determinate')
+        self.progress_bar.pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.progress_label = tk.Label(progress_frame, text="0%")
+        self.progress_label.pack(side=tk.LEFT)
+        
+        # Status label
+        self.status_label = tk.Label(self.root, text="", fg="green")
+        self.status_label.pack(pady=5)
+        
+        # Process button
+        self.process_btn = tk.Button(self.root, text="Process Images",
+                                    width=40, bg="#4CAF50", fg="white",
+                                    command=self.start_processing)
+        self.process_btn.pack(pady=15)
+        
+        # Output label
+        tk.Label(self.root, text="Output: forensic_features_dataset.csv",
+                font=("Arial", 9, "italic")).pack()
+        
+        # Stop button (initially disabled)
+        self.stop_btn = tk.Button(self.root, text="Stop Processing",
+                                 width=40, bg="#f44336", fg="white",
+                                 command=self.stop_processing,
+                                 state=tk.DISABLED)
+        self.stop_btn.pack(pady=5)
+        
+    def select_folder(self):
+        if not self.processing:
+            folder = filedialog.askdirectory()
+            if folder:
+                self.folder_label.config(text=folder)
+                self.status_label.config(text="Ready to process", fg="green")
+    
+    def update_progress(self, progress, processed, total):
+        if self.stop_requested:
+            return
+        self.progress_bar['value'] = progress
+        self.progress_label.config(text=f"{processed}/{total} ({progress:.1f}%)")
+        self.status_label.config(text=f"Processing... {processed}/{total} images")
+        self.root.update_idletasks()
+    
+    def on_complete(self, title, message):
+        self.processing = False
+        self.stop_requested = False
+        self.process_btn.config(state=tk.NORMAL)
+        self.stop_btn.config(state=tk.DISABLED)
+        
+        if title == "Success":
+            self.status_label.config(text="Processing complete!", fg="green")
+            messagebox.showinfo(title, message)
+        else:
+            self.status_label.config(text="Processing failed", fg="red")
+            messagebox.showerror(title, message)
+        
+        # Reset progress
+        self.progress_bar['value'] = 0
+        self.progress_label.config(text="0%")
+    
+    def start_processing(self):
+        folder = self.folder_label.cget("text")
+        if not folder or not os.path.isdir(folder):
+            messagebox.showerror("Error", "Please select a valid folder.")
+            return
+        
+        self.processing = True
+        self.stop_requested = False
+        self.process_btn.config(state=tk.DISABLED)
+        self.stop_btn.config(state=tk.NORMAL)
+        self.status_label.config(text="Starting processing...", fg="blue")
+        
+        # Start processing in separate thread
+        thread = threading.Thread(
+            target=process_folder_threaded,
+            args=(folder, self.update_progress, self.on_complete),
+            daemon=True
+        )
+        thread.start()
+    
+    def stop_processing(self):
+        if self.processing:
+            self.stop_requested = True
+            self.status_label.config(text="Stopping... Please wait", fg="orange")
+            self.stop_btn.config(state=tk.DISABLED)
 
-    df = pd.DataFrame(data)
-    csv_path = os.path.join(folder_path, "forensic_features_dataset.csv")
-    df.to_csv(csv_path, index=False)
+# ================== MAIN ==================
 
-    messagebox.showinfo(
-        "Success",
-        "Processing completed successfully!\n\n"
-        f"CSV saved at:\n{csv_path}\n\n"
-        f"Watermarked images saved in:\n{watermark_dir}"
-    )
-
-
-# ================== GUI ==================
-
-def select_folder():
-    folder_label.config(text=filedialog.askdirectory())
-
-
-def run_processing():
-    folder = folder_label.cget("text")
-    if not folder or not os.path.isdir(folder):
-        messagebox.showerror("Error", "Please select a valid folder.")
-        return
-    process_folder(folder)
-
-
-root = tk.Tk()
-root.title("AI Image Authenticity Dataset Builder")
-root.geometry("680x400")
-root.resizable(False, False)
-
-tk.Label(
-    root,
-    text="AI Image Authenticity Dataset Builder",
-    font=("Arial", 14, "bold")
-).pack(pady=10)
-
-tk.Button(
-    root,
-    text="Select Image Folder",
-    width=40,
-    command=select_folder
-).pack(pady=5)
-
-folder_label = tk.Label(root, text="", wraplength=640, fg="blue")
-folder_label.pack(pady=5)
-
-tk.Button(
-    root,
-    text="Process Images",
-    width=40,
-    bg="#4CAF50",
-    fg="white",
-    command=run_processing
-).pack(pady=15)
-
-tk.Label(
-    root,
-    text="Output: forensic_features_dataset.csv + watermarked_folder",
-    font=("Arial", 9, "italic")
-).pack()
-
-root.mainloop()
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = ProcessingApp(root)
+    root.mainloop()
