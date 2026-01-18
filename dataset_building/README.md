@@ -14,7 +14,7 @@ This document explains **what each dataset field denotes**, **why it is importan
 
 ---
 
-## 1. Problem Statement
+## 1. Problem Statement 
 
 With the rapid growth of AI image generation tools, it has become increasingly difficult to determine whether an image is real or AI-generated. Traditional approaches relying only on metadata inspection are unreliable because metadata can be removed, altered, or spoofed.
 
